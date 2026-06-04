@@ -1,0 +1,278 @@
+4:  Affiliation, ElectionResults, ElectionHistoryEntry, SeatWinner, 
+6:  BillVoteBreakdown, VoteDirection, PartyElectionVoteTally, Ethnicity,
+9:  UnificationMode, Ideology, GameEvent, ElectionSystem, LogEntry, StrongholdMap, StateGovernment, ElectionMapConfig, SeatStronghold
+33:  conductPartyLeadershipElection, 
+35:  aiFullElectionStrategy, 
+62:    simulateStateElectionResults, 
+65:    buildStateElectionSnapshot,
+66:    type StateElectionHistoryEntry
+82:  getElectionEconomicMultiplier,
+102:import PartySelectionScreen from './screens/PartySelectionScreen';
+103:import CharacterSelectionScreen from './screens/CharacterSelectionScreen';
+107:import PartyElectionScreen from './screens/PartyElectionScreen';
+108:import ElectionHistoryScreen from './screens/ElectionHistoryScreen';
+110:import SpeakerElectionScreen from './screens/SpeakerElectionScreen';
+118:import BillSelectionScreen from './screens/BillSelectionScreen';
+127:import PartyElectionResultsPanel from './components/PartyElectionResultsPanel';
+128:import ElectionResultsPanel from './components/ElectionResultsPanel';
+129:import SpeakerElectionResultsPanel from './components/SpeakerElectionResultsPanel';
+138:import ElectionMapControlPanel from './components/ElectionMapControlPanel';
+141:const ELECTION_INTERVAL_MS = 5 * 365 * 24 * 60 * 60 * 1000; // 4 years approx
+233:  // Pending character state for position selection flow
+245:  const [electionResults, setElectionResults] = useState<ElectionResults>(new Map());
+246:  const [detailedElectionResults, setDetailedElectionResults] = useState<Map<string, Map<string, number>>>(new Map());
+247:  const [electionHistory, setElectionHistory] = useState<ElectionHistoryEntry[]>([]);
+248:  const [electionSystem, setElectionSystem] = useState<ElectionSystem>('FPTP');
+254:  const [showElectionHistory, setShowElectionHistory] = useState(false);
+262:    setElectionMapConfig(prev => ({ ...prev, active: false }));
+268:    setElectionMapConfig(prev => ({ ...prev, active: false }));
+271:  const handleToggleElectionMap = () => {
+272:    setElectionMapConfig(prev => {
+317:      setElectionMapConfig(prev => ({ ...prev, active: false }));
+329:  // Elections & Politics State
+330:  const [nextPartyElectionDate, setNextPartyElectionDate] = useState<Date>(new Date('1949-06-15'));
+332:  const [partyElectionData, setPartyElectionData] = useState<{
+335:      voteTally?: PartyElectionVoteTally;
+340:  const [speakerElectionData, setSpeakerElectionData] = useState<{
+370:  const [hasRunPostElectionStrategy, setHasRunPostElectionStrategy] = useState(false);
+384:  // Election Map Overlay State
+385:  const [electionMapConfig, setElectionMapConfig] = useState<ElectionMapConfig>({
+391:  // guard ref to prevent double-firing the general election
+392:  const electionInProgressRef = useRef(false);
+416:  const [stateElectionHistoryMap, setStateElectionHistoryMap] =
+417:      useState<Map<string, StateElectionHistoryEntry[]>>(new Map());
+420:  const nextElectionDate = useMemo(() => {
+421:      if (electionHistory.length === 0) {
+424:      const lastElection = electionHistory[electionHistory.length - 1].date;
+425:      return new Date(lastElection.getTime() + ELECTION_INTERVAL_MS);
+426:  }, [electionHistory]);
+428:  const daysUntilElection = useMemo(() => {
+429:      return Math.ceil((nextElectionDate.getTime() - currentDate.getTime()) / (1000 * 60 * 72 * 24));
+430:  }, [nextElectionDate, currentDate]);
+463:  const previousElectionResults = useMemo(() => {
+464:      return electionHistory.length > 1 ? electionHistory[electionHistory.length - 2].results : new Map();
+465:  }, [electionHistory]);
+468:      let results = electionResults;
+469:      let detailedResults = detailedElectionResults;
+470:      let previousDetailedResults = electionHistory.length > 1 ? electionHistory[electionHistory.length - 2].detailedResults : undefined;
+472:      if (electionMapConfig.selectedElectionIndex !== undefined && electionHistory[electionMapConfig.selectedElectionIndex]) {
+473:          const entry = electionHistory[electionMapConfig.selectedElectionIndex];
+476:          previousDetailedResults = electionMapConfig.selectedElectionIndex > 0 
+477:              ? electionHistory[electionMapConfig.selectedElectionIndex - 1].detailedResults 
+482:          ...electionMapConfig,
+487:  }, [electionMapConfig, electionResults, detailedElectionResults, electionHistory]);
+489:  const isElectionClose = daysUntilElection <= 20;
+511:      gameState === 'election-results' ||
+513:      gameState === 'party-election-results' ||
+514:      gameState === 'speaker-election-results'
+518:      gameState === 'party-election-voting' ||
+519:      gameState === 'speaker-election-voting' ||
+525:      if (isElectionClose) {
+527:      } else if (electionHistory.length > 0) {
+534:      gameState === 'party-selection' ||
+535:      gameState === 'character-selection' ||
+536:      gameState === 'position-selection'
+544:    isElectionClose,
+545:    electionHistory.length,
+559:              const seatDist = simulateStateElectionResults(state, dummyResults, features, parties, characters);
+574:  const addToLog = useCallback((title: string, description: string, type: 'event' | 'politics' | 'election' | 'personal') => {
+632:    let workingElection = new Map<string, string>(electionResultsRef.current);
+646:        workingParties, workingChars, workingElection,
+652:      workingElection = res.newElectionResults;
+704:              workingParties, newParty.id, [pmip], [], workingElection, workingChars, date
+708:          workingElection = res.newElectionResults;
+740:    setElectionResults(workingElection);
+765:const electionResultsRef = useRef<ElectionResults>(electionResults);
+766:useEffect(() => { electionResultsRef.current = electionResults; }, [electionResults]);
+773:    // Enforce speed restriction close to election
+774:    const daysUntil = Math.ceil((nextElectionDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+783:      // 1. General Elections
+784:      if (nextElectionDate && nextDate >= nextElectionDate && !electionInProgressRef.current) {
+785:         electionInProgressRef.current = true;
+788:             handleGeneralElection(nextDate);
+789:             setHasRunPostElectionStrategy(false);
+873:                  const monthsUntilElection = Math.ceil(
+874:                      (nextElectionDate.getTime() - nextDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+891:                      Math.max(0, monthsUntilElection)
+930:                    electionResults,
+937:                    Math.max(0, Math.ceil((nextElectionDate.getTime() - nextDate.getTime()) / (1000 * 60 * 60 * 24 * 30))),
+976:                const monthsUntilElection = Math.max(0, Math.ceil(
+977:                (nextElectionDate.getTime() - nextDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+991:                    electionResults,
+1000:                    monthsUntilElection
+1109:      // 3. Party Elections (First in 1953)
+1110:      if (nextDate >= nextPartyElectionDate) {
+1115:                      handlePartyElectionAuto(p, nextDate);
+1119:              setNextPartyElectionDate(new Date(nextDate.getFullYear() + 3, nextDate.getMonth(), nextDate.getDate()));
+1122:                  handlePartyElectionStart(playerParty);
+1129:      // 4. State Party Elections
+1130:      if (nextDate.getMonth() === 4 && nextDate.getDate() === 1 && nextDate.getFullYear() === nextPartyElectionDate.getFullYear()) {
+1131:          setTimeout(() => handleStatePartyElections(nextDate), 0);
+1229:    // Post-Election AI Strategy
+1230:    const lastEventDate = electionHistory.length > 0 ? electionHistory[electionHistory.length - 1].date : START_DATE;
+1233:    if (daysSinceLastEvent >= 21 && !hasRunPostElectionStrategy) {
+1235:        setHasRunPostElectionStrategy(true);
+1319:              electionResults, 
+1353:      let activeElectionResults = new Map<string, string>(electionResults);
+1490:                                    activeParties, activeCharacters, activeElectionResults,
+1495:                                activeElectionResults = res.newElectionResults;
+1504:                                            activeParties, activeCharacters, activeElectionResults,
+1509:                                        activeElectionResults = joinRes.newElectionResults;
+1516:                                    activeParties, activeCharacters, activeElectionResults,
+1521:                                activeElectionResults = res.newElectionResults;
+1528:                                            activeParties, activeCharacters, activeElectionResults,
+1533:                                        activeElectionResults = joinRes.newElectionResults;
+1572:                  activeParties, activeCharacters, activeElectionResults,
+1578:              activeElectionResults = res.newElectionResults;
+1587:          const hasSeats = Array.from(activeElectionResults.values()).filter(id => id === p.id).length > 0;
+1703:                  activeParties, activeCharacters, activeElectionResults,
+1708:               activeElectionResults = res1.newElectionResults;
+1720:                            activeParties, activeCharacters, activeElectionResults,
+1725:                        activeElectionResults = resP.newElectionResults;
+1746:          const newMap = new Map(activeElectionResults);
+1747:          activeElectionResults.forEach((partyId, seatCode) => {
+1752:          activeElectionResults = newMap;
+1765:      const currentSeatCounts = getPartySeatCounts(activeElectionResults, new Map(activeParties.map(p => [p.id, p])));
+1804:                      activeParties, target.id, [weakP], [], activeElectionResults, activeCharacters, date
+1808:                  activeElectionResults = res.newElectionResults;
+1822:                          activeElectionResults, activeCharacters, date
+1827:                      activeElectionResults = res.newElectionResults;
+1838:      setElectionResults(activeElectionResults);
+1842:  const handleStatePartyElections = (date: Date) => {
+1874:  const handlePartyElectionAuto = (party: Party, date: Date) => {
+1894:      const { leaderId, deputyLeaderId } = conductPartyLeadershipElection(voters, candidates);
+1967:          const { updatedParty, historyUpdates } = aiFullElectionStrategy(
+2151:  const handleStartGame = () => setGameState('party-selection');
+2170:      setGameState('character-selection');
+2190:      setGameState('position-selection');
+2217:  const handleStateElections = (electionDay: Date, parliamentResults: ElectionResults) => {
+2220:      const newHistoryMap = new Map<string, StateElectionHistoryEntry[]>(stateElectionHistoryMap);
+2223:          const seatDist = simulateStateElectionResults(state, parliamentResults, features, parties, characters);
+2224:          const gov = formStateGovernment(state, seatDist, parties, characters, alliances, electionDay);
+2227:          const snapshot = buildStateElectionSnapshot(gov, parties, electionDay);
+2232:          addToLog('State Election', `${state}: ${winnerName} forms the state government.`, 'election');
+2236:      setStateElectionHistoryMap(newHistoryMap);
+2239:  const handleGeneralElection = (electionDay: Date) => {
+2242:    setGameState('election-results');
+2245:    setHasRunPostElectionStrategy(false);
+2263:    const charactersForElection = characters.map(c => {
+2298:        const charactersInSeat = charactersForElection.filter(c => c.currentSeatCode === seatCode && c.isAlive);
+2308:                const candidate = charactersForElection.find(c => c.id === contestData.candidateId);
+2347:            const economicMultiplier = getElectionEconomicMultiplier(
+2378:    if (electionSystem === 'FPTP') {
+2394:    } else if (electionSystem === 'PR') {
+2477:             const candidate = charactersForElection.find(c => c.id === candidateId);
+2499:    handleStateElections(electionDay, newWinningPartyResults);
+2501:    const historyEntry: ElectionHistoryEntry = {
+2502:        date: electionDay,
+2513:    setElectionHistory(prevHistory => [...prevHistory, historyEntry]);
+2515:    setElectionResults(newWinningPartyResults);
+2516:    setDetailedElectionResults(newDetailedResults);
+2544:                     newHistory = [...newHistory, { date: electionDay, event: `Won election in ${seatName}, becoming a Member of Parliament.` }];
+2546:                     newHistory = [...newHistory, { date: electionDay, event: `Re-elected in ${seatName}.` }];
+2551:                        newHistory = [...newHistory, { date: electionDay, event: `Defeated in ${seatName}, losing seat.` }];
+2553:                         newHistory = [...newHistory, { date: electionDay, event: `Did not contest, losing seat.` }];
+2556:                     newHistory = [...newHistory, { date: electionDay, event: `Defeated in election for ${seatName}.` }];
+2565:  const handlePartyElectionStart = (party: Party) => {
+2573:      setPartyElectionData({ party, candidates });
+2574:      setGameState('party-election-voting');
+2578:     if (!partyElectionData) return;
+2579:     const currentElectionData = partyElectionData;
+2580:     const party = currentElectionData.party;
+2598:     const { leaderId, deputyLeaderId, voteTally } = conductPartyLeadershipElection(npcVoters, currentElectionData.candidates);
+2612:         if (p.id === currentElectionData.party.id) {
+2634:         if (c.id === finalLeaderId) return { ...c, history: [...c.history, { date: currentDate, event: `Elected National Leader of ${currentElectionData.party.name}.` }]};
+2635:         if (c.id === finalDeputyId) return { ...c, history: [...c.history, { date: currentDate, event: `Elected Deputy Leader of ${currentElectionData.party.name}.` }]};
+2639:     setPartyElectionData({ ...currentElectionData, voteTally, winnerId: finalLeaderId, deputyWinnerId: finalDeputyId });
+2640:     setGameState('party-election-results');
+2643:  const handleSpeakerElectionStart = () => {
+2644:      const candidates = determineSpeakerCandidates(electionResults, parties, characters);
+2645:      setSpeakerElectionData({ candidates });
+2646:      setGameState('speaker-election-voting');
+2650:     if (!speakerElectionData) return;
+2651:     const currentElectionData = speakerElectionData; 
+2654:         electionResults, parties, currentElectionData.candidates,
+2663:     setSpeakerElectionData({ ...currentElectionData, results: { winner: currentElectionData.candidates.find(c => c.id === results.winnerId)!, tally: results.tally, breakdown: results.breakdown } });
+2664:     setGameState('speaker-election-results');
+2692:      const { government: newGovernment, updatedCharacters } = formGovernment(electionResults, parties, characters, currentDate, alliances, coalitionIds);
+2729:      handleSpeakerElectionStart();
+2733:      const seatCounts = getPartySeatCounts(electionResults, new Map(parties.map(p => [p.id, p])));
+2749:      const result = conductVoteOfConfidence(government, characters, parties, electionResults);
+2754:      setGameState('bill-selection');
+2772:      for (const partyId of electionResults.values()) {
+2799:          setElectionSystem('PR');
+2800:          addToLog('Constitutional Amendment', "Proportional Representation Act passed. Future elections will use PR.", 'politics');
+2890:          parties, characters, electionResults,
+2897:      setElectionResults(result.newElectionResults);
+2922:              newName, playerCharacter.id, undefined, electionResults, characters, currentDate
+2926:          setElectionResults(result.newElectionResults);
+2930:              electionResults, characters, currentDate
+2934:          setElectionResults(result.newElectionResults);
+3121:      {gameState === 'party-selection' && (
+3122:        <PartySelectionScreen 
+3128:      {gameState === 'character-selection' && selectedPartyId && (
+3129:        <CharacterSelectionScreen 
+3137:      {(gameState === 'game' || gameState === 'parliament' || gameState === 'election-results' || gameState === 'government-formation' || gameState === 'position-selection' || gameState === 'secession-join-party' || gameState === 'secession-new-party' || gameState === 'party-merger' || gameState === 'party-merger-result' || gameState === 'alliance-creation' || gameState === 'event-modal' || gameState === 'pas-invitation' || gameState === 'bill-selection' || gameState === 'bill-proposal' || gameState === 'bill-results'|| gameState === 'alliance-management'|| gameState === 'alliance-join') && (
+3147:                    if (gameState === 'position-selection') {
+3156:                electionResults={electionResults}
+3162:                    } else if (gameState === 'position-selection') {
+3166:                isPositionSelectionMode={gameState === 'position-selection'}
+3169:                electionMapConfig={currentMapConfig}
+3172:            {electionMapConfig.active && (
+3173:                <ElectionMapControlPanel 
+3175:                    onConfigChange={setElectionMapConfig}
+3177:                    onClose={() => setElectionMapConfig(prev => ({ ...prev, active: false }))}
+3178:                    electionHistory={electionHistory}
+3182:            {gameState === 'position-selection' && (
+3198:                        nextElectionDate={nextElectionDate}
+3200:                        electionHappened={electionHistory.length > 0}
+3201:                        onOpenHistory={() => setShowElectionHistory(true)}
+3202:                        isElectionClose={isElectionClose}
+3209:                        onToggleElectionMap={handleToggleElectionMap}
+3210:                        isElectionMapActive={electionMapConfig.active}
+3252:                    electionHistory={electionHistory}
+3264:                        stateElectionHistory={stateElectionHistoryMap.get(selectedState) || []}
+3379:                    daysUntilElection={daysUntilElection}
+3392:                    onConfirm={(pId, selections) => {
+3396:                            selections.forEach((charId, seatCode) => {
+3416:                        electionResults={electionResults}
+3468:            {gameState === 'bill-selection' && (
+3469:                <BillSelectionScreen 
+3483:                    electionResults={electionResults}
+3502:            {showElectionHistory && (
+3503:                <ElectionHistoryScreen 
+3504:                    history={electionHistory}
+3507:                    onClose={() => setShowElectionHistory(false)}
+3508:                    electionHistory={electionHistory}
+3596:                    electionResults={electionResults}
+3622:                                        parties, pasInvitationData.pasPartyId, [playerParty], [], electionResults, characters, currentDate
+3645:                                    setElectionResults(res.newElectionResults);
+3680:      {gameState === 'election-results' && (
+3681:          <ElectionResultsPanel 
+3682:             results={electionResults}
+3683:             previousResults={previousElectionResults}
+3684:             detailedResults={detailedElectionResults}
+3689:                 electionInProgressRef.current = false;
+3692:             electionDate={currentDate}
+3693:             totalElectors={electionHistory[electionHistory.length-1]?.totalElectors || 0}
+3699:      {gameState === 'party-election-voting' && partyElectionData && (
+3700:          <PartyElectionScreen 
+3701:             party={partyElectionData.party}
+3702:             candidates={partyElectionData.candidates}
+3708:                    (partyElectionData && partyElectionData.party.stateBranches.some(b => b.leaderId === playerCharacter.id || b.executiveIds.includes(playerCharacter.id)))
+3714:      {gameState === 'party-election-results' && partyElectionData && partyElectionData.voteTally && partyElectionData.winnerId && (
+3715:          <PartyElectionResultsPanel 
+3716:              voteTally={partyElectionData.voteTally}
+3717:              winnerId={partyElectionData.winnerId}
+3718:              deputyWinnerId={partyElectionData.deputyWinnerId}
+3719:              party={partyElectionData.party}
+3720:              partyMembers={characters.filter(c => partyElectionData.party.affiliationIds.includes(c.affiliationId))}
+3722:                  setPartyElectionData(null);
+3728:      {gameState === 'speaker-election-voting' && speakerElectionData && (
+3729:          <SpeakerElectionScreen 
+3730:             candidates={speakerElectionData.candidates}
+3733:             electionResults={electionResults}
+3739:      {gameState === 'speaker-election-results' && speakerElectionData && speakerElectionData.results && (
+3740:          <SpeakerElectionResultsPanel 
+3741:            results={speakerElectionData.results}
+3745:                setSpeakerElectionData(null);
